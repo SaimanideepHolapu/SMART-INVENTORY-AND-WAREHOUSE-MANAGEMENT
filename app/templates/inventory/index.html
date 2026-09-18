@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+
+{% block title %}Live Inventory Stock Levels{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Live Inventory Stock Levels</h1>
+        <div class="page-subtitle">Real-time balances across warehouse bays with automated stock threshold evaluations.</div>
+    </div>
+    {% if current_user.is_admin or current_user.is_staff %}
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('inventory.stock_in') }}" class="btn btn-primary-wh btn-sm d-flex align-items-center gap-1 shadow-sm">
+            <i class="fas fa-arrow-down"></i> <span>Stock In (Receive)</span>
+        </a>
+        <a href="{{ url_for('inventory.stock_out') }}" class="btn btn-danger-wh btn-sm d-flex align-items-center gap-1 shadow-sm">
+            <i class="fas fa-arrow-up"></i> <span>Stock Out (Dispatch)</span>
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Status Filters Bar -->
+<div class="content-card p-3 mb-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <!-- Quick Status Pills -->
+        <div class="btn-group btn-group-sm" role="group">
+            <a href="{{ url_for('inventory.index', category=selected_category, search=search) }}" class="btn {% if not selected_status %}btn-dark{% else %}btn-outline-secondary{% endif %}">
+                All Items
+            </a>
+            <a href="{{ url_for('inventory.index', status='IN STOCK', category=selected_category, search=search) }}" class="btn {% if selected_status == 'IN STOCK' %}btn-success{% else %}btn-outline-success{% endif %}">
+                <i class="fas fa-check-circle me-1"></i> In Stock
+            </a>
+            <a href="{{ url_for('inventory.index', status='LOW STOCK', category=selected_category, search=search) }}" class="btn {% if selected_status == 'LOW STOCK' %}btn-warning text-dark{% else %}btn-outline-warning text-dark{% endif %}">
+                <i class="fas fa-triangle-exclamation me-1"></i> Low Stock
+            </a>
+            <a href="{{ url_for('inventory.index', status='OUT OF STOCK', category=selected_category, search=search) }}" class="btn {% if selected_status == 'OUT OF STOCK' %}btn-danger{% else %}btn-outline-danger{% endif %}">
+                <i class="fas fa-circle-xmark me-1"></i> Out of Stock
+            </a>
+        </div>
+
+        <!-- Search & Category Form -->
+        <form method="GET" action="{{ url_for('inventory.index') }}" class="d-flex gap-2 align-items-center">
+            {% if selected_status %}
+                <input type="hidden" name="status" value="{{ selected_status }}">
+            {% endif %}
+            <select name="category" class="form-select form-select-sm" onchange="this.form.submit()" style="width: 170px;">
+                <option value="">All Categories</option>
+                {% for cat in categories %}
+                    <option value="{{ cat }}" {% if selected_category == cat %}selected{% endif %}>{{ cat }}</option>
+                {% endfor %}
+            </select>
+            <div class="input-group input-group-sm" style="width: 220px;">
+                <input type="text" name="search" class="form-control" placeholder="Search SKU or name..." value="{{ search }}">
+                <button class="btn btn-secondary" type="submit"><i class="fas fa-search"></i></button>
+            </div>
+            {% if search or selected_category or selected_status %}
+                <a href="{{ url_for('inventory.index') }}" class="btn btn-sm btn-outline-secondary" title="Clear Filters"><i class="fas fa-times"></i></a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Stock Table -->
+<div class="content-card mb-0">
+    <div class="table-responsive">
+        <table class="warehouse-table">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>SKU</th>
+                    <th>Category</th>
+                    <th>Current Stock</th>
+                    <th>Safety Min</th>
+                    <th>Status</th>
+                    <th>Location</th>
+                    <th>Supplier</th>
+                    {% if current_user.is_admin or current_user.is_staff %}
+                    <th class="text-end">Quick Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('products.detail', id=product.id) }}" class="fw-bold text-dark text-decoration-none">
+                                {{ product.name }}
+                            </a>
+                        </td>
+                        <td><span class="sku-tag">{{ product.sku }}</span></td>
+                        <td><span class="badge bg-light text-secondary border">{{ product.category }}</span></td>
+                        <td>
+                            <span class="fs-6 fw-bold {% if product.stock_quantity == 0 %}text-danger{% elif product.stock_quantity <= product.minimum_stock %}text-warning-emphasis{% else %}text-success{% endif %}">
+                                {{ product.stock_quantity }}
+                            </span>
+                            <span class="text-muted small">units</span>
+                        </td>
+                        <td class="text-muted small">{{ product.minimum_stock }} units</td>
+                        <td>
+                            <span class="{{ product.status_badge_class }}">{{ product.status }}</span>
+                        </td>
+                        <td>
+                            <span class="location-tag">
+                                <i class="fas fa-map-pin text-danger"></i>
+                                {{ product.location.short_code if product.location else 'Unassigned' }}
+                            </span>
+                        </td>
+                        <td class="small text-muted">{{ product.supplier.name if product.supplier else 'None' }}</td>
+                        {% if current_user.is_admin or current_user.is_staff %}
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('inventory.stock_in', product_id=product.id) }}" class="btn btn-outline-primary" title="Receive Stock (+)">
+                                    <i class="fas fa-plus"></i> In
+                                </a>
+                                <a href="{{ url_for('inventory.stock_out', product_id=product.id) }}" class="btn btn-outline-danger {% if product.stock_quantity <= 0 %}disabled{% endif %}" title="Dispatch Stock (-)">
+                                    <i class="fas fa-minus"></i> Out
+                                </a>
+                            </div>
+                        </td>
+                        {% endif %}
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="9">
+                            <div class="empty-state">
+                                <div class="empty-state-icon"><i class="fas fa-boxes-stacked"></i></div>
+                                <h5 class="empty-state-title">No inventory matching criteria</h5>
+                                <p class="empty-state-desc">Try clearing the status and category filters to see all warehouse products.</p>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

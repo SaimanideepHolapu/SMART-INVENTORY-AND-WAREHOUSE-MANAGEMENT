@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ 'Edit Supplier: ' + supplier.name if supplier else 'Register Supplier' }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ 'Edit Supplier: ' + supplier.name if supplier else 'Register New Vendor / Supplier' }}</h1>
+        <div class="page-subtitle">Configure supplier code, primary business contact, and physical warehouse address.</div>
+    </div>
+    <a href="{{ url_for('suppliers.index') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i> Back to Directory
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="content-card p-4">
+            <form method="POST">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Unique Supplier Code <span class="text-danger">*</span></label>
+                        <input type="text" name="supplier_code" class="form-control font-monospace" placeholder="e.g. SUP-APEX-01" value="{{ supplier.supplier_code if supplier else '' }}" required>
+                        <div class="form-text">Unique alphanumeric code used on inbound manifests.</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Company / Entity Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g. Apex Tech Logistics Ltd" value="{{ supplier.name if supplier else '' }}" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Contact Phone</label>
+                        <input type="text" name="phone" class="form-control" placeholder="+1 (555) 234-5678" value="{{ supplier.phone if supplier else '' }}">
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" name="email" class="form-control" placeholder="procurement@vendor.com" value="{{ supplier.email if supplier else '' }}">
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">Corporate / Logistics Facility Address</label>
+                        <textarea name="address" class="form-control" rows="3" placeholder="Street, Suite, City, State, Zip, Country...">{{ supplier.address if supplier else '' }}</textarea>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <a href="{{ url_for('suppliers.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary-wh">
+                        <i class="fas fa-save me-1"></i> {{ 'Save Changes' if supplier else 'Register Supplier' }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,248 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ product.name }} - Details{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge bg-secondary">{{ product.category }}</span>
+            <span class="{{ product.status_badge_class }}">{{ product.status }}</span>
+        </div>
+        <h1 class="page-title">{{ product.name }}</h1>
+        <div class="page-subtitle">SKU: <code class="fw-bold">{{ product.sku }}</code> &bull; Product Code: <code>{{ product.product_code }}</code></div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('products.print_qr', id=product.id) }}" target="_blank" class="btn btn-outline-secondary btn-sm shadow-sm">
+            <i class="fas fa-print me-1"></i> Print Label
+        </a>
+        {% if current_user.is_admin or current_user.is_staff %}
+        <a href="{{ url_for('inventory.stock_in', product_id=product.id) }}" class="btn btn-primary-wh btn-sm shadow-sm">
+            <i class="fas fa-arrow-down me-1"></i> Stock In
+        </a>
+        <a href="{{ url_for('inventory.stock_out', product_id=product.id) }}" class="btn btn-danger-wh btn-sm shadow-sm">
+            <i class="fas fa-arrow-up me-1"></i> Stock Out
+        </a>
+        {% endif %}
+        {% if current_user.is_admin %}
+        <a href="{{ url_for('products.edit', id=product.id) }}" class="btn btn-outline-primary btn-sm shadow-sm">
+            <i class="fas fa-pencil me-1"></i> Edit
+        </a>
+        <button type="button" class="btn btn-outline-danger btn-sm shadow-sm" data-bs-toggle="modal" data-bs-target="#deleteModal">
+            <i class="fas fa-trash me-1"></i> Delete
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <!-- Left: Specifications & Location -->
+    <div class="col-lg-8">
+        <!-- Stock Level Alert Banner if Low/Out -->
+        {% if product.stock_quantity == 0 %}
+            <div class="alert alert-danger d-flex align-items-center mb-3">
+                <i class="fas fa-triangle-exclamation fa-2x me-3"></i>
+                <div>
+                    <strong>CRITICAL: OUT OF STOCK</strong>
+                    <div>This item is completely depleted. All outgoing dispatches are blocked until intake is received.</div>
+                </div>
+            </div>
+        {% elif product.stock_quantity <= product.minimum_stock %}
+            <div class="alert alert-warning d-flex align-items-center mb-3">
+                <i class="fas fa-bell fa-2x me-3"></i>
+                <div>
+                    <strong>WARNING: LOW STOCK ALERT</strong>
+                    <div>Current stock ({{ product.stock_quantity }}) has dropped below the threshold of {{ product.minimum_stock }} units. Restock recommended.</div>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Stat Tiles -->
+        <div class="row g-3 mb-3">
+            <div class="col-sm-4">
+                <div class="content-card p-3 text-center mb-0">
+                    <div class="text-muted small text-uppercase fw-semibold">Available Units</div>
+                    <div class="fs-2 fw-bold {% if product.stock_quantity <= product.minimum_stock %}text-danger{% else %}text-success{% endif %}">
+                        {{ product.stock_quantity }}
+                    </div>
+                    <div class="text-muted small">Min alert: {{ product.minimum_stock }}</div>
+                </div>
+            </div>
+            <div class="col-sm-4">
+                <div class="content-card p-3 text-center mb-0">
+                    <div class="text-muted small text-uppercase fw-semibold">Unit Price</div>
+                    <div class="fs-2 fw-bold text-dark">
+                        ${{ "%.2f" | format(product.price) }}
+                    </div>
+                    <div class="text-muted small">MSRP / Cost</div>
+                </div>
+            </div>
+            <div class="col-sm-4">
+                <div class="content-card p-3 text-center mb-0">
+                    <div class="text-muted small text-uppercase fw-semibold">Total Stock Value</div>
+                    <div class="fs-2 fw-bold text-primary">
+                        ${{ "{:,.2f}".format(product.total_value) }}
+                    </div>
+                    <div class="text-muted small">Asset valuation</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Master Data Card -->
+        <div class="content-card mb-3">
+            <div class="card-header-flex">
+                <h6 class="card-heading"><i class="fas fa-circle-info text-primary"></i> Master Specifications</h6>
+            </div>
+            <div class="p-3">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <span class="text-muted small">Physical Storage Bay:</span>
+                        <div class="fw-semibold mt-1">
+                            <i class="fas fa-map-marker-alt text-danger me-1"></i>
+                            {{ product.location.full_location if product.location else 'Unassigned' }}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <span class="text-muted small">Supplier Partner:</span>
+                        <div class="fw-semibold mt-1">
+                            <i class="fas fa-truck text-secondary me-1"></i>
+                            {% if product.supplier %}
+                                <a href="{{ url_for('suppliers.detail', id=product.supplier.id) }}" class="text-decoration-none">
+                                    {{ product.supplier.name }} ({{ product.supplier.supplier_code }})
+                                </a>
+                            {% else %}
+                                None
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <span class="text-muted small">Product Description:</span>
+                        <div class="mt-1 text-secondary">
+                            {{ product.description or 'No specifications entered.' }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transaction History for this product -->
+        <div class="content-card mb-0">
+            <div class="card-header-flex">
+                <h6 class="card-heading"><i class="fas fa-list-check text-secondary"></i> Product Movement Ledger</h6>
+                <span class="text-muted small">Last 15 operations</span>
+            </div>
+            <div class="table-responsive">
+                <table class="warehouse-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Quantity</th>
+                            <th>Reference</th>
+                            <th>Supplier / Dest</th>
+                            <th>Staff</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tx in transactions %}
+                            <tr>
+                                <td class="text-muted small">{{ tx.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td><span class="{{ tx.type_badge_class }}">{{ tx.transaction_type.replace('_', ' ') }}</span></td>
+                                <td class="fw-bold {% if tx.transaction_type == 'STOCK_IN' %}text-primary{% else %}text-danger{% endif %}">
+                                    {{ tx.quantity_formatted }}
+                                </td>
+                                <td><code>{{ tx.reference_number }}</code></td>
+                                <td class="small text-muted">
+                                    {% if tx.transaction_type == 'STOCK_IN' %}
+                                        {{ tx.supplier.name if tx.supplier else '-' }}
+                                    {% else %}
+                                        {{ tx.destination or '-' }}
+                                    {% endif %}
+                                </td>
+                                <td class="small">{{ tx.performer.name }}</td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-muted">No stock movements recorded for this product.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right: Product Photo & QR Code Identifier Card -->
+    <div class="col-lg-4">
+        <!-- Product Photo Card if available -->
+        {% if product.image_url %}
+        <div class="content-card p-3 mb-3 text-center">
+            <h6 class="fw-bold mb-2 text-start"><i class="fas fa-image text-primary me-1"></i> Product Photo</h6>
+            <img src="{{ product.image_url }}" alt="{{ product.name }}" class="img-fluid rounded border shadow-sm" style="max-height: 200px; object-fit: contain;">
+        </div>
+        {% endif %}
+
+        <div class="content-card text-center p-4">
+            <h6 class="fw-bold mb-3"><i class="fas fa-qrcode text-dark me-1"></i> QR / Barcode Identifier</h6>
+            
+            <div class="p-3 bg-light rounded d-inline-block shadow-sm border mb-3">
+                <img src="{{ qr_base64 }}" alt="Product QR Code for {{ product.sku }}" class="img-fluid" style="width: 180px; height: 180px;">
+            </div>
+
+            <div class="font-monospace fw-bold fs-5 text-primary mb-1">{{ product.sku }}</div>
+            <div class="text-muted small mb-3">Stored: <code>static/qrcodes/{{ product.sku }}.png</code></div>
+
+            <div class="d-grid gap-2">
+                <a href="{{ qr_base64 }}" download="QR_{{ product.sku }}.png" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-download me-1"></i> Download QR Image
+                </a>
+                <a href="{{ url_for('products.print_qr', id=product.id) }}" target="_blank" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-tag me-1"></i> Warehouse Sticker Label
+                </a>
+                <a href="{{ url_for('scanner.index', sku=product.sku) }}" class="btn btn-light btn-sm border">
+                    <i class="fas fa-camera me-1"></i> Test in Scanner Viewport
+                </a>
+            </div>
+
+            <hr class="my-3">
+            <div class="small text-muted text-start">
+                <div><i class="fas fa-calendar-plus me-1"></i> Created: {{ product.created_at.strftime('%Y-%m-%d') }}</div>
+                <div><i class="fas fa-clock me-1"></i> Updated: {{ product.updated_at.strftime('%Y-%m-%d %H:%M') }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal (Admin Only) -->
+{% if current_user.is_admin %}
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteModalLabel"><i class="fas fa-exclamation-triangle me-2"></i> Confirm Product Deletion</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong>{{ product.name }}</strong> (SKU: <code>{{ product.sku }}</code>)?</p>
+                {% if product.stock_quantity > 0 %}
+                    <div class="alert alert-danger mb-0">
+                        <i class="fas fa-ban me-1"></i> <strong>Operation Blocked:</strong> Product currently has <strong>{{ product.stock_quantity }} units</strong> in stock. You must dispatch all units before deleting.
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-0">This action will remove the product and its historical transactions permanently.</p>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                {% if product.stock_quantity == 0 %}
+                <form method="POST" action="{{ url_for('products.delete', id=product.id) }}">
+                    <button type="submit" class="btn btn-danger">Confirm Delete</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+
+{% block title %}Warehouse Analytics & Supply Chain Intelligence{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title"><i class="fas fa-chart-pie text-primary me-2"></i> Warehouse Analytics & BI</h1>
+        <div class="page-subtitle">Velocity metrics, fastest-moving inventory, stock health distributions, and capital allocation.</div>
+    </div>
+</div>
+
+<!-- High-Level Financial & Health Stats -->
+<div class="kpi-grid mb-4">
+    <div class="kpi-card">
+        <div>
+            <div class="kpi-title">Warehouse Inventory Capital</div>
+            <div class="kpi-value text-success">${{ "{:,.2f}".format(kpis.total_valuation) }}</div>
+            <div class="kpi-subtext">Total active inventory asset value</div>
+        </div>
+        <div class="kpi-icon-box icon-green"><i class="fas fa-dollar-sign"></i></div>
+    </div>
+    <div class="kpi-card">
+        <div>
+            <div class="kpi-title">Catalog Depth</div>
+            <div class="kpi-value text-dark">{{ kpis.total_products }} SKUs</div>
+            <div class="kpi-subtext">Across {{ categories | length }} categories</div>
+        </div>
+        <div class="kpi-icon-box icon-blue"><i class="fas fa-layer-group"></i></div>
+    </div>
+    <div class="kpi-card">
+        <div>
+            <div class="kpi-title">Stock Health Rate</div>
+            <div class="kpi-value {% if kpis.low_stock_count + kpis.out_of_stock_count > 0 %}text-warning{% else %}text-success{% endif %}">
+                {% if kpis.total_products > 0 %}
+                    {{ "%.1f" | format((stock_health.in_stock / kpis.total_products) * 100) }}%
+                {% else %}
+                    100%
+                {% endif %}
+            </div>
+            <div class="kpi-subtext">Catalog items in healthy balance</div>
+        </div>
+        <div class="kpi-icon-box icon-amber"><i class="fas fa-shield-heart"></i></div>
+    </div>
+    <div class="kpi-card">
+        <div>
+            <div class="kpi-title">Out of Stock Friction</div>
+            <div class="kpi-value text-danger">{{ kpis.out_of_stock_count }} items</div>
+            <div class="kpi-subtext">Depleted zero-stock SKUs</div>
+        </div>
+        <div class="kpi-icon-box icon-red"><i class="fas fa-ban"></i></div>
+    </div>
+</div>
+
+<!-- Visual Charts Row -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-8">
+        <div class="content-card h-100 mb-0">
+            <div class="card-header-flex">
+                <h6 class="card-heading"><i class="fas fa-chart-line text-primary"></i> 14-Day Velocity & Stock Flow Dynamics</h6>
+                <span class="text-muted small">Inflow vs Outflow</span>
+            </div>
+            <div class="p-3" style="position: relative; height: 300px;">
+                <canvas id="analyticsTrendsChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="content-card h-100 mb-0">
+            <div class="card-header-flex">
+                <h6 class="card-heading"><i class="fas fa-chart-pie text-success"></i> Stock Health Breakdown</h6>
+                <span class="text-muted small">By Product Count</span>
+            </div>
+            <div class="p-3" style="position: relative; height: 300px;">
+                <canvas id="healthChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Velocity & Movement Tables -->
+<div class="row g-3 mb-4">
+    <!-- Top 5 Fastest Moving Products (Dispatched) -->
+    <div class="col-lg-6">
+        <div class="content-card h-100 mb-0">
+            <div class="card-header-flex">
+                <h6 class="card-heading"><i class="fas fa-fire text-danger"></i> Fastest-Moving SKUs (Top Dispatches)</h6>
+                <span class="badge bg-danger-subtle text-danger border">High Turnover</span>
+            </div>
+            <div class="table-responsive">
+                <table class="warehouse-table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>SKU</th>
+                            <th class="text-end">Units Dispatched</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in top_dispatched %}
+                            <tr>
+                                <td class="fw-semibold">{{ row.name }}</td>
+                                <td><span class="sku-tag">{{ row.sku }}</span></td>
+                                <td class="text-end fw-bold text-danger">-{{ row.total_out }} units</td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center py-3 text-muted">No outgoing movement history yet.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top 5 Inbound Intake Products -->
+    <div class="col-lg-6">
+        <div class="content-card h-100 mb-0">
+            <div class="card-header-flex">
+                <h6 class="card-heading"><i class="fas fa-dolly text-primary"></i> Highest Inbound Intake SKUs</h6>
+                <span class="badge bg-primary-subtle text-primary border">Vendor Receipts</span>
+            </div>
+            <div class="table-responsive">
+                <table class="warehouse-table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>SKU</th>
+                            <th class="text-end">Units Received</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in top_received %}
+                            <tr>
+                                <td class="fw-semibold">{{ row.name }}</td>
+                                <td><span class="sku-tag">{{ row.sku }}</span></td>
+                                <td class="text-end fw-bold text-primary">+{{ row.total_in }} units</td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center py-3 text-muted">No intake history yet.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Category Financial Breakdown -->
+<div class="content-card mb-0">
+    <div class="card-header-flex">
+        <h6 class="card-heading"><i class="fas fa-folder-tree text-secondary"></i> Category Asset Allocation & Inventory Density</h6>
+    </div>
+    <div class="table-responsive">
+        <table class="warehouse-table">
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Unique SKUs</th>
+                    <th>Total Physical Units</th>
+                    <th>Asset Valuation</th>
+                    <th>Capital Share</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cat in categories %}
+                    <tr>
+                        <td class="fw-bold">{{ cat.category }}</td>
+                        <td>{{ cat.product_count }} items</td>
+                        <td class="fw-semibold">{{ "{:,}".format(cat.total_units) }} units</td>
+                        <td class="fw-bold text-success">${{ "{:,.2f}".format(cat.total_value) }}</td>
+                        <td>
+                            {% if kpis.total_valuation > 0 %}
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-primary" role="progressbar" style="width: {{ (cat.total_value / kpis.total_valuation) * 100 }}%"></div>
+                                </div>
+                                <div class="small text-muted mt-1">{{ "%.1f" | format((cat.total_value / kpis.total_valuation) * 100) }}% of assets</div>
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+{% endblock %}

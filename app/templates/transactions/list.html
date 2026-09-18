@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+
+{% block title %}Inventory Transaction Audit Trail{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title"><i class="fas fa-clock-rotate-left text-secondary me-2"></i> Inventory Transaction Audit Trail</h1>
+        <div class="page-subtitle">Immutable log of every material intake, customer dispatch, and warehouse movement.</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('reports.export_movements_csv', from_date=from_date, to_date=to_date, type=selected_type, product_id=selected_product_id) }}" class="btn btn-outline-secondary btn-sm shadow-sm">
+            <i class="fas fa-file-csv me-1"></i> Export Filtered CSV
+        </a>
+    </div>
+</div>
+
+<!-- Filters Bar -->
+<div class="content-card p-3 mb-3">
+    <form method="GET" action="{{ url_for('transactions.index') }}" class="row g-2 align-items-center">
+        <div class="col-md-3">
+            <input type="text" name="search" class="form-control form-control-sm" placeholder="Search reference, note, dest..." value="{{ search }}">
+        </div>
+        <div class="col-md-2">
+            <select name="type" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="">All Movement Types</option>
+                <option value="STOCK_IN" {% if selected_type == 'STOCK_IN' %}selected{% endif %}>Stock In (Intake)</option>
+                <option value="STOCK_OUT" {% if selected_type == 'STOCK_OUT' %}selected{% endif %}>Stock Out (Dispatch)</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select name="product_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="">All Products</option>
+                {% for p in products %}
+                    <option value="{{ p.id }}" {% if selected_product_id == p.id %}selected{% endif %}>{{ p.sku }} - {{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3 d-flex gap-1">
+            <input type="date" name="from_date" class="form-control form-control-sm" title="From Date" value="{{ from_date }}">
+            <input type="date" name="to_date" class="form-control form-control-sm" title="To Date" value="{{ to_date }}">
+        </div>
+        <div class="col-md-1 d-flex gap-1">
+            <button type="submit" class="btn btn-primary-wh btn-sm w-100" title="Apply Filter"><i class="fas fa-filter"></i></button>
+            {% if search or selected_type or selected_product_id or from_date or to_date %}
+                <a href="{{ url_for('transactions.index') }}" class="btn btn-outline-danger btn-sm" title="Reset Filters"><i class="fas fa-times"></i></a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Transactions Table -->
+<div class="content-card mb-0">
+    <div class="table-responsive">
+        <table class="warehouse-table">
+            <thead>
+                <tr>
+                    <th>Date & Time (UTC)</th>
+                    <th>Reference #</th>
+                    <th>Product</th>
+                    <th>Type</th>
+                    <th>Quantity</th>
+                    <th>Counterpart (Supplier / Destination)</th>
+                    <th>Operator</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tx in transactions %}
+                    <tr>
+                        <td class="text-muted small" style="white-space: nowrap;">
+                            {{ tx.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                        </td>
+                        <td>
+                            <span class="font-monospace fw-bold small text-dark">{{ tx.reference_number }}</span>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('products.detail', id=tx.product.id) }}" class="fw-semibold text-dark text-decoration-none">
+                                {{ tx.product.name }}
+                            </a>
+                            <div class="text-muted small"><code>{{ tx.product.sku }}</code></div>
+                        </td>
+                        <td>
+                            <span class="{{ tx.type_badge_class }}">
+                                {{ tx.transaction_type.replace('_', ' ') }}
+                            </span>
+                        </td>
+                        <td class="fw-bold fs-6 {% if tx.transaction_type == 'STOCK_IN' %}text-primary{% else %}text-danger{% endif %}">
+                            {{ tx.quantity_formatted }}
+                        </td>
+                        <td class="small">
+                            {% if tx.transaction_type == 'STOCK_IN' %}
+                                <span class="text-secondary"><i class="fas fa-truck text-muted me-1"></i> {{ tx.supplier.name if tx.supplier else 'Direct Supplier' }}</span>
+                            {% else %}
+                                <span class="text-dark"><i class="fas fa-location-arrow text-muted me-1"></i> {{ tx.destination or 'Customer Dispatch' }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="small">
+                            <span class="badge bg-light text-dark border">{{ tx.performer.name }}</span>
+                        </td>
+                        <td class="small text-muted" style="max-width: 220px;">
+                            {{ tx.notes or '-' }}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="8">
+                            <div class="empty-state">
+                                <div class="empty-state-icon"><i class="fas fa-receipt"></i></div>
+                                <h5 class="empty-state-title">No transactions recorded</h5>
+                                <p class="empty-state-desc">No movements matched your query filters. Perform a Stock In or Stock Out operation to create audit records.</p>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

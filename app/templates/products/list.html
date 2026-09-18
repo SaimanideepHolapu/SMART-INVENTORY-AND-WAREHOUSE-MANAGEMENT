@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+
+{% block title %}Products Catalog{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Products Catalog</h1>
+        <div class="page-subtitle">Central registry of warehouse SKUs, master specifications, and bay mappings.</div>
+    </div>
+    {% if current_user.is_admin %}
+    <div>
+        <a href="{{ url_for('products.create') }}" class="btn btn-primary-wh d-flex align-items-center gap-1 shadow-sm">
+            <i class="fas fa-plus"></i> <span>Add New Product</span>
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Search and Filter Bar -->
+<div class="content-card p-3 mb-3">
+    <form method="GET" action="{{ url_for('products.index') }}" class="row g-2 align-items-center">
+        <div class="col-md-5">
+            <div class="input-group">
+                <span class="input-group-text bg-light text-muted"><i class="fas fa-search"></i></span>
+                <input type="text" name="search" class="form-control" placeholder="Search by name, SKU, or code..." value="{{ search }}">
+            </div>
+        </div>
+        <div class="col-md-3">
+            <select name="category" class="form-select" onchange="this.form.submit()">
+                <option value="">All Categories</option>
+                {% for cat in categories %}
+                    <option value="{{ cat }}" {% if selected_category == cat %}selected{% endif %}>{{ cat }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select name="status" class="form-select" onchange="this.form.submit()">
+                <option value="">All Statuses</option>
+                <option value="IN STOCK" {% if selected_status == 'IN STOCK' %}selected{% endif %}>In Stock</option>
+                <option value="LOW STOCK" {% if selected_status == 'LOW STOCK' %}selected{% endif %}>Low Stock</option>
+                <option value="OUT OF STOCK" {% if selected_status == 'OUT OF STOCK' %}selected{% endif %}>Out of Stock</option>
+            </select>
+        </div>
+        <div class="col-md-2 d-flex gap-2">
+            <button type="submit" class="btn btn-secondary w-100"><i class="fas fa-filter me-1"></i> Filter</button>
+            {% if search or selected_category or selected_status %}
+                <a href="{{ url_for('products.index') }}" class="btn btn-outline-danger" title="Clear Filters"><i class="fas fa-times"></i></a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Products Table -->
+<div class="content-card mb-0">
+    <div class="table-responsive">
+        <table class="warehouse-table">
+            <thead>
+                <tr>
+                    <th>Product & Category</th>
+                    <th>SKU / Code</th>
+                    <th>Unit Price</th>
+                    <th>Stock / Min</th>
+                    <th>Status</th>
+                    <th>Location</th>
+                    <th>Supplier</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('products.detail', id=product.id) }}" class="fw-bold text-dark text-decoration-none">
+                                {{ product.name }}
+                            </a>
+                            <div><span class="badge bg-light text-secondary border mt-1">{{ product.category }}</span></div>
+                        </td>
+                        <td>
+                            <div><span class="sku-tag">{{ product.sku }}</span></div>
+                            <div class="text-muted small">Code: {{ product.product_code }}</div>
+                        </td>
+                        <td class="fw-semibold">
+                            ${{ "%.2f" | format(product.price) }}
+                        </td>
+                        <td>
+                            <span class="fs-6 fw-bold {% if product.stock_quantity <= product.minimum_stock %}text-danger{% else %}text-dark{% endif %}">
+                                {{ product.stock_quantity }}
+                            </span>
+                            <span class="text-muted small">/ min {{ product.minimum_stock }}</span>
+                        </td>
+                        <td>
+                            <span class="{{ product.status_badge_class }}">{{ product.status }}</span>
+                        </td>
+                        <td>
+                            <span class="location-tag">
+                                <i class="fas fa-map-pin text-danger"></i>
+                                {{ product.location.short_code if product.location else 'Unassigned' }}
+                            </span>
+                        </td>
+                        <td class="small text-muted">
+                            {{ product.supplier.name if product.supplier else 'None' }}
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('products.detail', id=product.id) }}" class="btn btn-outline-secondary" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('products.print_qr', id=product.id) }}" target="_blank" class="btn btn-outline-secondary" title="Print QR/Barcode Label">
+                                    <i class="fas fa-print"></i>
+                                </a>
+                                {% if current_user.is_admin %}
+                                <a href="{{ url_for('products.edit', id=product.id) }}" class="btn btn-outline-primary" title="Edit Product">
+                                    <i class="fas fa-pencil"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="8">
+                            <div class="empty-state">
+                                <div class="empty-state-icon"><i class="fas fa-box-open"></i></div>
+                                <h5 class="empty-state-title">No products found</h5>
+                                <p class="empty-state-desc">Try adjusting your search criteria or add your first product to the inventory database.</p>
+                                {% if current_user.is_admin %}
+                                <a href="{{ url_for('products.create') }}" class="btn btn-primary-wh">
+                                    <i class="fas fa-plus me-1"></i> Add Product
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

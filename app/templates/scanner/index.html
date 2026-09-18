@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+
+{% block title %}QR & Barcode Scanner Hub{% endblock %}
+
+{% block content %}
+<input type="hidden" id="scanner-initial-sku" value="{{ initial_sku }}">
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title"><i class="fas fa-qrcode text-primary me-2"></i> QR & Barcode Scanning Hub</h1>
+        <div class="page-subtitle">Instant product identification via live camera feed, handheld laser scanners, or manual SKU search.</div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Left Column: Camera Viewfinder & Manual Search -->
+    <div class="col-lg-6">
+        <!-- Live Camera Card -->
+        <div class="content-card mb-4">
+            <div class="card-header-flex">
+                <h6 class="card-heading"><i class="fas fa-camera text-primary"></i> Device Camera Scanner</h6>
+                <div>
+                    <button id="start-camera-btn" class="btn btn-primary-wh btn-sm">
+                        <i class="fas fa-play me-1"></i> Start Camera
+                    </button>
+                    <button id="stop-camera-btn" class="btn btn-danger-wh btn-sm d-none">
+                        <i class="fas fa-stop me-1"></i> Stop Camera
+                    </button>
+                </div>
+            </div>
+            <div class="p-3 text-center">
+                <div id="qr-reader" style="max-width: 480px; margin: 0 auto; min-height: 250px; background-color: #f8fafc; border-radius: 8px; border: 2px dashed #cbd5e1; display: flex; align-items: center; justify-content: center;">
+                    <div class="text-muted p-4">
+                        <i class="fas fa-video-slash fa-3x mb-2 text-secondary"></i>
+                        <p class="mb-0 small">Camera stream is paused.<br>Click <strong>Start Camera</strong> to begin scanning physical QR codes or barcodes.</p>
+                    </div>
+                </div>
+                <div id="camera-status-text" class="mt-3 small text-muted">
+                    <i class="fas fa-info-circle me-1"></i> Camera requires browser permissions. Secure HTTPS or localhost is supported.
+                </div>
+            </div>
+        </div>
+
+        <!-- Scan from Image File -->
+        <div class="content-card mb-4">
+            <div class="card-header-flex">
+                <h6 class="card-heading"><i class="fas fa-file-image text-success"></i> Scan from QR / Barcode Image File</h6>
+                <span class="badge bg-light text-muted border">Image File</span>
+            </div>
+            <div class="p-3">
+                <label class="form-label small text-muted">Select or upload a saved photo/screenshot of a QR code or barcode:</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="fas fa-upload"></i></span>
+                    <input type="file" id="qr-file-input" class="form-control" accept="image/*">
+                </div>
+                <div id="file-scan-status" class="small text-muted mt-2">
+                    <i class="fas fa-info-circle me-1"></i> Supports PNG, JPG, JPEG, WEBP images from your local folder or gallery.
+                </div>
+            </div>
+        </div>
+
+        <!-- Manual SKU Fallback Lookup -->
+        <div class="content-card mb-0">
+            <div class="card-header-flex">
+                <h6 class="card-heading"><i class="fas fa-keyboard text-secondary"></i> Manual SKU / Barcode Lookup</h6>
+                <span class="badge bg-light text-muted border">Fallback</span>
+            </div>
+            <div class="p-3">
+                <form id="manual-search-form">
+                    <label class="form-label small text-muted">Type or paste product barcode / SKU / product code:</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light"><i class="fas fa-barcode"></i></span>
+                        <input type="text" id="manual-sku-input" class="form-control font-monospace" placeholder="e.g. SSD-NVME-1TB or KB-MECH-RGB" required>
+                        <button type="submit" class="btn btn-primary-wh">
+                            <i class="fas fa-search me-1"></i> Search
+                        </button>
+                    </div>
+                    <div class="form-text small mt-2">
+                        Compatible with standard USB / Bluetooth handheld warehouse barcode guns (which send an Enter keystroke after scan).
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Scanned Product Real-Time Card -->
+    <div class="col-lg-6">
+        <div class="content-card h-100 mb-0">
+            <div class="card-header-flex">
+                <h6 class="card-heading"><i class="fas fa-box-check text-success"></i> Scanned Product Dossier</h6>
+                <span class="text-muted small">Live Result</span>
+            </div>
+            <div class="p-4" id="scan-result-container">
+                <div class="empty-state py-5">
+                    <div class="empty-state-icon"><i class="fas fa-qrcode"></i></div>
+                    <h5 class="empty-state-title">Awaiting Scanner Input</h5>
+                    <p class="empty-state-desc">Scan a physical QR code with your camera or search a SKU to view live inventory status and execute quick operations.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- HTML5-QRCode Library -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<!-- Scanner Handler Script -->
+<script src="{{ url_for('static', filename='js/scanner.js') }}"></script>
+{% endblock %}

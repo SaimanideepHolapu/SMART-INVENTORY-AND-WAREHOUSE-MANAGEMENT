@@ -1,0 +1,251 @@
+{% extends 'base.html' %}
+
+{% block title %}Warehouse Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Operations Command Center</h1>
+        <div class="page-subtitle">Real-time inventory levels, stock flows, and supply chain telemetry.</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('scanner.index') }}" class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1 shadow-sm">
+            <i class="fas fa-barcode"></i> <span>Scan Barcode/QR</span>
+        </a>
+        {% if current_user.is_admin or current_user.is_staff %}
+        <a href="{{ url_for('inventory.stock_in') }}" class="btn btn-primary-wh btn-sm d-flex align-items-center gap-1 shadow-sm">
+            <i class="fas fa-arrow-down"></i> <span>Stock In</span>
+        </a>
+        <a href="{{ url_for('inventory.stock_out') }}" class="btn btn-danger-wh btn-sm d-flex align-items-center gap-1 shadow-sm">
+            <i class="fas fa-arrow-up"></i> <span>Stock Out</span>
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- KPI Cards Grid -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div>
+            <div class="kpi-title">Total Products</div>
+            <div class="kpi-value">{{ "{:,}".format(kpis.total_products) }}</div>
+            <div class="kpi-subtext">Active catalog SKUs</div>
+        </div>
+        <div class="kpi-icon-box icon-blue">
+            <i class="fas fa-boxes-stacked"></i>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div>
+            <div class="kpi-title">Total Stock Units</div>
+            <div class="kpi-value">{{ "{:,}".format(kpis.total_stock_units) }}</div>
+            <div class="kpi-subtext">Physical units on shelves</div>
+        </div>
+        <div class="kpi-icon-box icon-green">
+            <i class="fas fa-cubes"></i>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div>
+            <div class="kpi-title">Low Stock Items</div>
+            <div class="kpi-value text-warning">{{ kpis.low_stock_count }}</div>
+            <div class="kpi-subtext">Below safety threshold</div>
+        </div>
+        <div class="kpi-icon-box icon-amber">
+            <i class="fas fa-triangle-exclamation"></i>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div>
+            <div class="kpi-title">Out of Stock</div>
+            <div class="kpi-value text-danger">{{ kpis.out_of_stock_count }}</div>
+            <div class="kpi-subtext">Depleted inventory</div>
+        </div>
+        <div class="kpi-icon-box icon-red">
+            <i class="fas fa-circle-xmark"></i>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div>
+            <div class="kpi-title">Stock In Today</div>
+            <div class="kpi-value text-primary">+{{ "{:,}".format(kpis.stock_in_today) }}</div>
+            <div class="kpi-subtext">Received into warehouse</div>
+        </div>
+        <div class="kpi-icon-box icon-cyan">
+            <i class="fas fa-dolly"></i>
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div>
+            <div class="kpi-title">Stock Out Today</div>
+            <div class="kpi-value text-danger">-{{ "{:,}".format(kpis.stock_out_today) }}</div>
+            <div class="kpi-subtext">Dispatched shipments</div>
+        </div>
+        <div class="kpi-icon-box icon-purple">
+            <i class="fas fa-truck-ramp-box"></i>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-8">
+        <div class="content-card h-100 mb-0">
+            <div class="card-header-flex">
+                <h6 class="card-heading">
+                    <i class="fas fa-chart-column text-primary"></i> Stock Movement Velocity (Past 7 Days)
+                </h6>
+                <span class="text-muted small">Units Received vs Dispatched</span>
+            </div>
+            <div class="p-3" style="position: relative; height: 290px;">
+                <canvas id="stockFlowChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="content-card h-100 mb-0">
+            <div class="card-header-flex">
+                <h6 class="card-heading">
+                    <i class="fas fa-chart-pie text-info"></i> Category Distribution
+                </h6>
+                <span class="text-muted small">By Total Units</span>
+            </div>
+            <div class="p-3" style="position: relative; height: 290px;">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Operational Split: Low Stock Alerts & Recent Transactions -->
+<div class="row g-3">
+    <!-- Dedicated Low-Stock Alert Panel -->
+    <div class="col-lg-5">
+        <div class="content-card mb-0 h-100">
+            <div class="card-header-flex bg-white">
+                <h6 class="card-heading text-danger">
+                    <i class="fas fa-bell"></i> Low-Stock & Depleted Alerts
+                </h6>
+                <a href="{{ url_for('reports.index', tab='low_stock') }}" class="btn btn-link btn-sm p-0 text-decoration-none">
+                    View Reorder Report <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+            <div class="p-0">
+                {% if low_stock_items %}
+                    <div class="list-group list-group-flush">
+                        {% for item in low_stock_items %}
+                            <div class="list-group-item p-3 d-flex justify-content-between align-items-center {% if item.stock_quantity == 0 %}bg-danger-subtle{% endif %}">
+                                <div>
+                                    <div class="d-flex align-items-center gap-2 mb-1">
+                                        <a href="{{ url_for('products.detail', id=item.id) }}" class="fw-bold text-dark text-decoration-none">
+                                            {{ item.name }}
+                                        </a>
+                                        <span class="{{ item.status_badge_class }}">{{ item.status }}</span>
+                                    </div>
+                                    <div class="small text-muted">
+                                        <span class="sku-tag">{{ item.sku }}</span> &bull; 
+                                        Location: <strong>{{ item.location.short_code if item.location else 'Unassigned' }}</strong>
+                                    </div>
+                                    <div class="small mt-1">
+                                        <span class="{% if item.stock_quantity == 0 %}text-danger fw-bold{% else %}text-warning-emphasis fw-semibold{% endif %}">
+                                            {{ item.stock_quantity }} units remaining
+                                        </span> 
+                                        <span class="text-muted">(Min threshold: {{ item.minimum_stock }})</span>
+                                    </div>
+                                </div>
+                                {% if current_user.is_admin or current_user.is_staff %}
+                                <div>
+                                    <a href="{{ url_for('inventory.stock_in', product_id=item.id) }}" class="btn btn-outline-primary btn-sm shadow-sm" title="Receive Stock">
+                                        <i class="fas fa-plus"></i> Restock
+                                    </a>
+                                </div>
+                                {% endif %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state py-5">
+                        <div class="empty-state-icon text-success"><i class="fas fa-circle-check"></i></div>
+                        <h6 class="empty-state-title">Stock Health Optimal</h6>
+                        <p class="empty-state-desc">All products are currently above their configured minimum stock thresholds.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Movements Ledger -->
+    <div class="col-lg-7">
+        <div class="content-card mb-0 h-100">
+            <div class="card-header-flex">
+                <h6 class="card-heading">
+                    <i class="fas fa-clock-rotate-left text-secondary"></i> Recent Inventory Movements
+                </h6>
+                <a href="{{ url_for('transactions.index') }}" class="btn btn-link btn-sm p-0 text-decoration-none">
+                    Full Audit Trail <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+            <div class="table-responsive">
+                <table class="warehouse-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Product</th>
+                            <th>Type</th>
+                            <th>Quantity</th>
+                            <th>Counterpart</th>
+                            <th>By</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tx in recent_transactions %}
+                            <tr>
+                                <td class="text-muted small" style="white-space: nowrap;">
+                                    {{ tx.created_at.strftime('%b %d, %H:%M') }}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('products.detail', id=tx.product.id) }}" class="fw-semibold text-dark text-decoration-none">
+                                        {{ tx.product.name }}
+                                    </a>
+                                    <div class="text-muted small"><code>{{ tx.product.sku }}</code></div>
+                                </td>
+                                <td>
+                                    <span class="{{ tx.type_badge_class }}">
+                                        {{ tx.transaction_type.replace('_', ' ') }}
+                                    </span>
+                                </td>
+                                <td class="fw-bold {% if tx.transaction_type == 'STOCK_IN' %}text-primary{% else %}text-danger{% endif %}">
+                                    {{ tx.quantity_formatted }}
+                                </td>
+                                <td class="small text-muted">
+                                    {% if tx.transaction_type == 'STOCK_IN' %}
+                                        {{ tx.supplier.name if tx.supplier else 'Direct Receipt' }}
+                                    {% else %}
+                                        {{ tx.destination or 'Dispatch' }}
+                                    {% endif %}
+                                </td>
+                                <td class="small">
+                                    <span class="badge bg-light text-dark border">{{ tx.performer.name }}</span>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-muted">No stock movements recorded yet.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+{% endblock %}

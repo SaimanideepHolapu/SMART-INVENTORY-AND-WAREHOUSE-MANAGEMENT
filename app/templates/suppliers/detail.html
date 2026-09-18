@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+
+{% block title %}Supplier: {{ supplier.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="sku-tag fs-6">{{ supplier.supplier_code }}</span>
+            <span class="badge bg-secondary">{{ supplier.total_products_count }} Supplied SKUs</span>
+        </div>
+        <h1 class="page-title">{{ supplier.name }}</h1>
+        <div class="page-subtitle">Partner Vendor & Inbound Material Supplier</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('suppliers.index') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left me-1"></i> Back to Directory
+        </a>
+        {% if current_user.is_admin %}
+        <a href="{{ url_for('suppliers.edit', id=supplier.id) }}" class="btn btn-outline-primary btn-sm">
+            <i class="fas fa-pencil me-1"></i> Edit
+        </a>
+        <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteSupplierModal">
+            <i class="fas fa-trash me-1"></i> Delete
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Contact Info Card -->
+    <div class="col-lg-4">
+        <div class="content-card p-4">
+            <h6 class="fw-bold mb-3"><i class="fas fa-address-card text-primary me-2"></i> Vendor Contact Info</h6>
+            <div class="mb-3">
+                <span class="text-muted small">Vendor Code:</span>
+                <div class="font-monospace fw-bold">{{ supplier.supplier_code }}</div>
+            </div>
+            <div class="mb-3">
+                <span class="text-muted small">Phone:</span>
+                <div>{{ supplier.phone or 'Not provided' }}</div>
+            </div>
+            <div class="mb-3">
+                <span class="text-muted small">Email:</span>
+                <div>
+                    {% if supplier.email %}
+                        <a href="mailto:{{ supplier.email }}" class="text-decoration-none">{{ supplier.email }}</a>
+                    {% else %}
+                        Not provided
+                    {% endif %}
+                </div>
+            </div>
+            <div class="mb-3">
+                <span class="text-muted small">Physical Address:</span>
+                <div class="text-secondary small">{{ supplier.address or 'No address on file' }}</div>
+            </div>
+            <hr>
+            <div class="d-flex justify-content-between text-muted small">
+                <span>Registered:</span>
+                <span>{{ supplier.created_at.strftime('%Y-%m-%d') }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Side: Catalog & Inbound Intake History -->
+    <div class="col-lg-8">
+        <!-- Products Supplied -->
+        <div class="content-card mb-4">
+            <div class="card-header-flex">
+                <h6 class="card-heading"><i class="fas fa-boxes-stacked text-primary"></i> Active Catalog Provided by Vendor</h6>
+                <span class="badge bg-light text-dark border">{{ products | length }} items</span>
+            </div>
+            <div class="table-responsive">
+                <table class="warehouse-table">
+                    <thead>
+                        <tr>
+                            <th>Product Name</th>
+                            <th>SKU</th>
+                            <th>Stock</th>
+                            <th>Status</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in products %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('products.detail', id=p.id) }}" class="fw-semibold text-dark text-decoration-none">
+                                        {{ p.name }}
+                                    </a>
+                                </td>
+                                <td><span class="sku-tag">{{ p.sku }}</span></td>
+                                <td class="fw-bold">{{ p.stock_quantity }} units</td>
+                                <td><span class="{{ p.status_badge_class }}">{{ p.status }}</span></td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('inventory.stock_in', product_id=p.id) }}" class="btn btn-xs btn-outline-primary py-0 px-2" style="font-size: 0.75rem;">
+                                        <i class="fas fa-plus"></i> Intake
+                                    </a>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-3 text-muted">No products currently linked to this vendor.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Inbound Shipments from this Vendor -->
+        <div class="content-card mb-0">
+            <div class="card-header-flex">
+                <h6 class="card-heading"><i class="fas fa-dolly text-success"></i> Recent Inbound Shipments Received</h6>
+                <span class="text-muted small">Audit History</span>
+            </div>
+            <div class="table-responsive">
+                <table class="warehouse-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Reference #</th>
+                            <th>Product</th>
+                            <th>Quantity Received</th>
+                            <th>Receiver</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tx in recent_transactions %}
+                            <tr>
+                                <td class="text-muted small">{{ tx.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td><code>{{ tx.reference_number }}</code></td>
+                                <td>
+                                    <a href="{{ url_for('products.detail', id=tx.product.id) }}" class="text-dark fw-semibold text-decoration-none">
+                                        {{ tx.product.name }}
+                                    </a>
+                                </td>
+                                <td class="fw-bold text-primary">+{{ tx.quantity }} units</td>
+                                <td class="small">{{ tx.performer.name }}</td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-3 text-muted">No intake shipments recorded yet from this vendor.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+{% if current_user.is_admin %}
+<div class="modal fade" id="deleteSupplierModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-trash me-2"></i> Delete Supplier</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete supplier <strong>{{ supplier.name }}</strong> ({{ supplier.supplier_code }})?</p>
+                {% if supplier.products %}
+                    <div class="alert alert-danger mb-0">
+                        <i class="fas fa-ban me-1"></i> Cannot delete: <strong>{{ supplier.products | length }} products</strong> are still assigned to this vendor.
+                    </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                {% if not supplier.products %}
+                <form method="POST" action="{{ url_for('suppliers.delete', id=supplier.id) }}">
+                    <button type="submit" class="btn btn-danger">Confirm Delete</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

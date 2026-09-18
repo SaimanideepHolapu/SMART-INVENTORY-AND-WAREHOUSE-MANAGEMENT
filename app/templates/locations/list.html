@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+
+{% block title %}Warehouse Physical Storage Locations{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title"><i class="fas fa-map-location-dot text-primary me-2"></i> Warehouse Storage Locations</h1>
+        <div class="page-subtitle">Physical warehouse topology: facilities, zones, aisles, racks, and shelf bin coordinates.</div>
+    </div>
+    {% if current_user.is_admin %}
+    <div>
+        <a href="{{ url_for('locations.create') }}" class="btn btn-primary-wh d-flex align-items-center gap-1 shadow-sm">
+            <i class="fas fa-plus"></i> <span>Add Storage Bay</span>
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Locations Table -->
+<div class="content-card mb-0">
+    <div class="table-responsive">
+        <table class="warehouse-table">
+            <thead>
+                <tr>
+                    <th>Facility / Building</th>
+                    <th>Zone</th>
+                    <th>Aisle</th>
+                    <th>Rack</th>
+                    <th>Shelf</th>
+                    <th>Full Path Descriptor</th>
+                    <th>Short Code</th>
+                    <th>Assigned SKUs</th>
+                    {% if current_user.is_admin %}
+                    <th class="text-end">Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for loc in locations %}
+                    <tr>
+                        <td class="fw-bold text-dark">{{ loc.warehouse_name }}</td>
+                        <td><span class="badge bg-light text-primary border fw-bold">Zone {{ loc.zone }}</span></td>
+                        <td>Aisle {{ loc.aisle }}</td>
+                        <td>Rack {{ loc.rack }}</td>
+                        <td>Shelf {{ loc.shelf }}</td>
+                        <td class="small text-muted">{{ loc.full_location }}</td>
+                        <td><span class="sku-tag">{{ loc.short_code }}</span></td>
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ loc.products | length }} products</span>
+                        </td>
+                        {% if current_user.is_admin %}
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('locations.edit', id=loc.id) }}" class="btn btn-outline-primary" title="Edit Location">
+                                    <i class="fas fa-pencil"></i>
+                                </a>
+                                {% if loc.products | length == 0 %}
+                                <form method="POST" action="{{ url_for('locations.delete', id=loc.id) }}" class="d-inline" onsubmit="return confirm('Delete storage bay {{ loc.short_code }}?');">
+                                    <button type="submit" class="btn btn-outline-danger" title="Delete Location">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                        {% endif %}
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="9">
+                            <div class="empty-state">
+                                <div class="empty-state-icon"><i class="fas fa-warehouse"></i></div>
+                                <h5 class="empty-state-title">No warehouse locations configured</h5>
+                                <p class="empty-state-desc">Set up zones, aisles, and shelves to organize your physical inventory.</p>
+                                {% if current_user.is_admin %}
+                                <a href="{{ url_for('locations.create') }}" class="btn btn-primary-wh">
+                                    <i class="fas fa-plus me-1"></i> Add Storage Bay
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

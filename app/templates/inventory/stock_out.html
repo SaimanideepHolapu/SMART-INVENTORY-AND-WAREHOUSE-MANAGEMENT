@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+
+{% block title %}Stock Out (Material Dispatch){% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title"><i class="fas fa-truck-ramp-box text-danger me-2"></i> Stock Out Operation</h1>
+        <div class="page-subtitle">Dispatch products to customers, assembly lines, or branches. Validates stock availability.</div>
+    </div>
+    <a href="{{ url_for('inventory.index') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i> Back to Inventory
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="content-card p-4">
+            <form method="POST" id="stock-out-form">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label">Select Product to Dispatch <span class="text-danger">*</span></label>
+                        <select name="product_id" id="product-select" class="form-select" required>
+                            <option value="">-- Choose Product by SKU or Name --</option>
+                            {% for p in products %}
+                                <option value="{{ p.id }}" 
+                                    data-stock="{{ p.stock_quantity }}" 
+                                    data-sku="{{ p.sku }}"
+                                    {% if p.stock_quantity <= 0 %}disabled{% endif %}
+                                    {% if selected_product_id == p.id %}selected{% endif %}>
+                                    {{ p.sku }} &mdash; {{ p.name }} (Available: {{ p.stock_quantity }}{% if p.stock_quantity <= 0 %} - OUT OF STOCK{% endif %})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Live Stock Preview Callout -->
+                    <div class="col-12" id="stock-preview-box" style="display: none;">
+                        <div class="p-3 bg-light rounded border d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="text-muted small">Currently Available Stock:</span>
+                                <div class="fs-5 fw-bold text-success" id="preview-available-stock">0 units</div>
+                            </div>
+                            <div class="text-end">
+                                <span class="text-muted small">Balance After Dispatch:</span>
+                                <div class="fs-5 fw-bold text-danger" id="preview-remaining-stock">0 units</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Over-allocation Error Alert -->
+                    <div class="col-12" id="overstock-error" style="display: none;">
+                        <div class="alert alert-danger d-flex align-items-center mb-0">
+                            <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+                            <div>
+                                <strong>Insufficient Stock!</strong>
+                                <div id="overstock-msg">Requested quantity exceeds available stock. Negative inventory is strictly prohibited.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Quantity to Dispatch <span class="text-danger">*</span></label>
+                        <input type="number" min="1" step="1" name="quantity" id="quantity-input" class="form-control" placeholder="e.g. 20" required>
+                        <div class="form-text">Must be greater than 0 and cannot exceed available stock.</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Destination / Consignee <span class="text-danger">*</span></label>
+                        <input type="text" name="destination" id="destination-input" class="form-control" placeholder="e.g. Customer Order #9482, Branch B" required>
+                        <div class="form-text">Target location, department, or shipment order.</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Sales Order / Dispatch Reference</label>
+                        <input type="text" name="reference_number" id="reference-input" class="form-control font-monospace" placeholder="e.g. SO-2026-0881">
+                        <div class="form-text">Waybill, customer invoice, or transfer note.</div>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">Dispatch Notes</label>
+                        <textarea name="notes" class="form-control" rows="3" placeholder="Handling instructions, carrier tracking number, customer notes..."></textarea>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <a href="{{ url_for('inventory.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                    <button type="submit" id="submit-btn" class="btn btn-danger-wh">
+                        <i class="fas fa-truck me-1"></i> Confirm & Dispatch Stock
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const productSelect = document.getElementById('product-select');
+    const quantityInput = document.getElementById('quantity-input');
+    const previewBox = document.getElementById('stock-preview-box');
+    const availableStockEl = document.getElementById('preview-available-stock');
+    const remainingStockEl = document.getElementById('preview-remaining-stock');
+    const overstockError = document.getElementById('overstock-error');
+    const overstockMsg = document.getElementById('overstock-msg');
+    const submitBtn = document.getElementById('submit-btn');
+    const referenceInput = document.getElementById('reference-input');
+
+    function updatePreview() {
+        const selected = productSelect.options[productSelect.selectedIndex];
+        if (selected && selected.value) {
+            const available = parseInt(selected.getAttribute('data-stock')) || 0;
+            const sku = selected.getAttribute('data-sku');
+            const qty = parseInt(quantityInput.value) || 0;
+
+            previewBox.style.display = 'block';
+            availableStockEl.textContent = `${available} units`;
+
+            if (!referenceInput.value) {
+                const now = new Date();
+                const yr = now.getFullYear();
+                referenceInput.value = `SO-${yr}-${sku}`;
+            }
+
+            if (qty > available) {
+                overstockError.style.display = 'block';
+                overstockMsg.textContent = `Requested: ${qty} units, but only ${available} units are available. Negative stock is not allowed.`;
+                submitBtn.disabled = true;
+                remainingStockEl.textContent = `Negative (-${qty - available})`;
+                remainingStockEl.className = 'fs-5 fw-bold text-danger';
+            } else {
+                overstockError.style.display = 'none';
+                submitBtn.disabled = false;
+                const remaining = available - qty;
+                remainingStockEl.textContent = `${remaining} units`;
+                remainingStockEl.className = remaining === 0 ? 'fs-5 fw-bold text-danger' : 'fs-5 fw-bold text-secondary';
+            }
+        } else {
+            previewBox.style.display = 'none';
+            overstockError.style.display = 'none';
+            submitBtn.disabled = false;
+        }
+    }
+
+    productSelect.addEventListener('change', updatePreview);
+    quantityInput.addEventListener('input', updatePreview);
+
+    if (productSelect.value) {
+        updatePreview();
+    }
+});
+</script>
+{% endblock %}

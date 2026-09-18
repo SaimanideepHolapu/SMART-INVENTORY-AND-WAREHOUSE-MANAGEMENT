@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}User & Role Management{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title"><i class="fas fa-users-gear text-primary me-2"></i> User & Role Management</h1>
+        <div class="page-subtitle">Configure warehouse operators, assign RBAC permissions, and manage account security.</div>
+    </div>
+    <div>
+        <a href="{{ url_for('users.create') }}" class="btn btn-primary-wh d-flex align-items-center gap-1 shadow-sm">
+            <i class="fas fa-user-plus"></i> <span>Create New User</span>
+        </a>
+    </div>
+</div>
+
+<div class="content-card mb-0">
+    <div class="table-responsive">
+        <table class="warehouse-table">
+            <thead>
+                <tr>
+                    <th>User Name</th>
+                    <th>Email Address</th>
+                    <th>Role & Permissions</th>
+                    <th>Status</th>
+                    <th>Created On</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="user-avatar" style="width: 32px; height: 32px; font-size: 0.8rem;">
+                                    {{ u.name[0] | upper }}
+                                </div>
+                                <div class="fw-bold text-dark">{{ u.name }}</div>
+                            </div>
+                        </td>
+                        <td><code>{{ u.email }}</code></td>
+                        <td>
+                            <span class="user-role-badge role-{{ u.role.lower() }}">
+                                {{ u.role }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if u.is_active_user %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-circle-check me-1"></i> Active</span>
+                            {% else %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="fas fa-circle-xmark me-1"></i> Deactivated</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted small">{{ u.created_at.strftime('%Y-%m-%d') }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('users.edit', id=u.id) }}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-pencil me-1"></i> Edit
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

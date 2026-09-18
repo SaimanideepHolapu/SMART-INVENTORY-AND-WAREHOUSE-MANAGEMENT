@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Print QR Label - {{ product.sku }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f1f5f9;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .toolbar {
+            margin-bottom: 1.5rem;
+        }
+        .label-card {
+            width: 4in;
+            height: 2.6in;
+            background: #fff;
+            border: 2px solid #000;
+            border-radius: 6px;
+            padding: 0.2in;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .barcode-row {
+            display: flex;
+            align-items: center;
+            gap: 0.25in;
+        }
+        .qr-image {
+            width: 1.3in;
+            height: 1.3in;
+            border: 1px solid #000;
+        }
+        .meta-col {
+            flex: 1;
+        }
+        @media print {
+            body {
+                background: #fff !important;
+                padding: 0 !important;
+            }
+            .toolbar {
+                display: none !important;
+            }
+            .label-card {
+                box-shadow: none !important;
+                border: 2px solid #000 !important;
+                margin: 0 auto;
+                page-break-after: always;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar no-print">
+        <button onclick="window.print()" class="btn btn-primary btn-sm me-2">
+            <i class="fas fa-print me-1"></i> Print Label
+        </button>
+        <button onclick="window.close()" class="btn btn-outline-secondary btn-sm">
+            Close Window
+        </button>
+    </div>
+
+    <div class="label-card">
+        <div class="d-flex justify-content-between align-items-center border-bottom pb-1">
+            <strong style="font-size: 0.95rem; text-transform: uppercase;">SMART INVENTORY OS</strong>
+            <span class="badge bg-dark" style="font-size: 0.7rem;">{{ product.category }}</span>
+        </div>
+
+        <div class="barcode-row my-auto">
+            <img src="{{ qr_base64 }}" alt="QR" class="qr-image">
+            <div class="meta-col">
+                <div style="font-size: 0.85rem; font-weight: 700; line-height: 1.2; margin-bottom: 4px;">
+                    {{ product.name }}
+                </div>
+                <div style="font-family: monospace; font-size: 1.05rem; font-weight: 800; color: #000;">
+                    {{ product.sku }}
+                </div>
+                <div style="font-size: 0.72rem; color: #333; margin-top: 4px;">
+                    REF: <code>{{ product.product_code }}</code>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center border-top pt-1" style="font-size: 0.75rem;">
+            <div>
+                <strong>BAY:</strong> {{ product.location.short_code if product.location else 'UNASSIGNED' }}
+            </div>
+            <div>
+                <strong>MIN:</strong> {{ product.minimum_stock }} | <strong>MSRP:</strong> ${{ "%.2f" | format(product.price) }}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ 'Edit Location: ' + location.short_code if location else 'Add Storage Location' }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">{{ 'Edit Storage Bay: ' + location.short_code if location else 'Add New Warehouse Storage Bay' }}</h1>
+        <div class="page-subtitle">Configure exact physical facility coordinates for rapid picker navigation.</div>
+    </div>
+    <a href="{{ url_for('locations.index') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i> Back to Locations
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="content-card p-4">
+            <form method="POST">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label">Warehouse Facility Name <span class="text-danger">*</span></label>
+                        <input type="text" name="warehouse_name" class="form-control" placeholder="e.g. Warehouse Alpha" value="{{ location.warehouse_name if location else 'Warehouse Alpha' }}" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Zone Identifier <span class="text-danger">*</span></label>
+                        <input type="text" name="zone" class="form-control" placeholder="e.g. A, B, C, or NORTH" value="{{ location.zone if location else '' }}" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Aisle Number / Code <span class="text-danger">*</span></label>
+                        <input type="text" name="aisle" class="form-control" placeholder="e.g. 01, 02, 14" value="{{ location.aisle if location else '' }}" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Rack Tier / Bay <span class="text-danger">*</span></label>
+                        <input type="text" name="rack" class="form-control" placeholder="e.g. 01, 03" value="{{ location.rack if location else '' }}" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Shelf Bin Number <span class="text-danger">*</span></label>
+                        <input type="text" name="shelf" class="form-control" placeholder="e.g. 01, 04" value="{{ location.shelf if location else '' }}" required>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <a href="{{ url_for('locations.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary-wh">
+                        <i class="fas fa-save me-1"></i> {{ 'Update Location' if location else 'Save Storage Bay' }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

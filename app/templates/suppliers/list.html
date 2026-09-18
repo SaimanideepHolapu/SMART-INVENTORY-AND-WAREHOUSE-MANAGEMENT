@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block title %}Suppliers Directory{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title"><i class="fas fa-truck-field text-secondary me-2"></i> Suppliers Directory</h1>
+        <div class="page-subtitle">Vendor profiles, delivery contacts, and product supply chains.</div>
+    </div>
+    {% if current_user.is_admin %}
+    <div>
+        <a href="{{ url_for('suppliers.create') }}" class="btn btn-primary-wh d-flex align-items-center gap-1 shadow-sm">
+            <i class="fas fa-plus"></i> <span>Register Supplier</span>
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Search Bar -->
+<div class="content-card p-3 mb-3">
+    <form method="GET" action="{{ url_for('suppliers.index') }}" class="row g-2 align-items-center">
+        <div class="col-md-6">
+            <div class="input-group">
+                <span class="input-group-text bg-light text-muted"><i class="fas fa-search"></i></span>
+                <input type="text" name="search" class="form-control" placeholder="Search supplier name, code, or email..." value="{{ search }}">
+            </div>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-secondary w-100"><i class="fas fa-filter me-1"></i> Search</button>
+        </div>
+        {% if search %}
+        <div class="col-md-2">
+            <a href="{{ url_for('suppliers.index') }}" class="btn btn-outline-danger">Clear Search</a>
+        </div>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Suppliers Table -->
+<div class="content-card mb-0">
+    <div class="table-responsive">
+        <table class="warehouse-table">
+            <thead>
+                <tr>
+                    <th>Supplier Name</th>
+                    <th>Vendor Code</th>
+                    <th>Contact Phone</th>
+                    <th>Email Address</th>
+                    <th>Supplied SKUs</th>
+                    <th>Total Units in Stock</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in suppliers %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('suppliers.detail', id=s.id) }}" class="fw-bold text-dark text-decoration-none">
+                                {{ s.name }}
+                            </a>
+                        </td>
+                        <td><span class="sku-tag">{{ s.supplier_code }}</span></td>
+                        <td class="small">{{ s.phone or '-' }}</td>
+                        <td class="small text-muted">{{ s.email or '-' }}</td>
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ s.total_products_count }} products</span>
+                        </td>
+                        <td class="fw-semibold text-primary">
+                            {{ "{:,}".format(s.total_units_in_stock) }} units
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('suppliers.detail', id=s.id) }}" class="btn btn-outline-secondary" title="View Dossier">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if current_user.is_admin %}
+                                <a href="{{ url_for('suppliers.edit', id=s.id) }}" class="btn btn-outline-primary" title="Edit Supplier">
+                                    <i class="fas fa-pencil"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty-state">
+                                <div class="empty-state-icon"><i class="fas fa-truck"></i></div>
+                                <h5 class="empty-state-title">No suppliers found</h5>
+                                <p class="empty-state-desc">Register your vendors to track part provenance and intake shipments.</p>
+                                {% if current_user.is_admin %}
+                                <a href="{{ url_for('suppliers.create') }}" class="btn btn-primary-wh">
+                                    <i class="fas fa-plus me-1"></i> Register Supplier
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

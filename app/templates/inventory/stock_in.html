@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}Stock In (Material Intake){% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title"><i class="fas fa-dolly text-primary me-2"></i> Stock In Operation</h1>
+        <div class="page-subtitle">Receive incoming products from suppliers, increase physical stock balance, and create audit trail.</div>
+    </div>
+    <a href="{{ url_for('inventory.index') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-left me-1"></i> Back to Inventory
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="content-card p-4">
+            <form method="POST">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label">Select Product to Receive <span class="text-danger">*</span></label>
+                        <select name="product_id" id="product-select" class="form-select" required>
+                            <option value="">-- Choose Product by SKU or Name --</option>
+                            {% for p in products %}
+                                <option value="{{ p.id }}" 
+                                    data-stock="{{ p.stock_quantity }}" 
+                                    data-supplier-id="{{ p.supplier_id or '' }}"
+                                    data-sku="{{ p.sku }}"
+                                    {% if selected_product_id == p.id %}selected{% endif %}>
+                                    {{ p.sku }} &mdash; {{ p.name }} (Current Stock: {{ p.stock_quantity }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Live Stock Preview Callout -->
+                    <div class="col-12" id="stock-preview-box" style="display: none;">
+                        <div class="p-3 bg-light rounded border d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="text-muted small">Current Balance on Shelves:</span>
+                                <div class="fs-5 fw-bold text-dark" id="preview-current-stock">0 units</div>
+                            </div>
+                            <div class="text-end">
+                                <span class="text-muted small">New Balance After Intake:</span>
+                                <div class="fs-5 fw-bold text-primary" id="preview-projected-stock">0 units</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Quantity to Receive <span class="text-danger">*</span></label>
+                        <input type="number" min="1" step="1" name="quantity" id="quantity-input" class="form-control" placeholder="e.g. 50" required>
+                        <div class="form-text">Must be a whole number greater than 0.</div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Purchase Order / Reference Number</label>
+                        <input type="text" name="reference_number" id="reference-input" class="form-control font-monospace" placeholder="e.g. PO-2026-0042">
+                        <div class="form-text">Vendor PO number or delivery challan reference.</div>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">Delivering Supplier</label>
+                        <select name="supplier_id" id="supplier-select" class="form-select">
+                            <option value="">Use Default / Product Assigned Supplier</option>
+                            {% for s in suppliers %}
+                                <option value="{{ s.id }}">{{ s.name }} ({{ s.supplier_code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label">Intake Notes / Inspection Comments</label>
+                        <textarea name="notes" class="form-control" rows="3" placeholder="Condition of goods, carrier name, bill of lading..."></textarea>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <a href="{{ url_for('inventory.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary-wh">
+                        <i class="fas fa-check-circle me-1"></i> Confirm & Receive Stock
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const productSelect = document.getElementById('product-select');
+    const quantityInput = document.getElementById('quantity-input');
+    const previewBox = document.getElementById('stock-preview-box');
+    const currentStockEl = document.getElementById('preview-current-stock');
+    const projectedStockEl = document.getElementById('preview-projected-stock');
+    const supplierSelect = document.getElementById('supplier-select');
+    const referenceInput = document.getElementById('reference-input');
+
+    function updatePreview() {
+        const selected = productSelect.options[productSelect.selectedIndex];
+        if (selected && selected.value) {
+            const currentStock = parseInt(selected.getAttribute('data-stock')) || 0;
+            const supplierId = selected.getAttribute('data-supplier-id');
+            const sku = selected.getAttribute('data-sku');
+            const qty = parseInt(quantityInput.value) || 0;
+
+            previewBox.style.display = 'block';
+            currentStockEl.textContent = `${currentStock} units`;
+            projectedStockEl.textContent = `${currentStock + qty} units`;
+
+            if (supplierId && !supplierSelect.value) {
+                supplierSelect.value = supplierId;
+            }
+
+            if (!referenceInput.value) {
+                const now = new Date();
+                const yr = now.getFullYear();
+                referenceInput.value = `PO-${yr}-${sku}`;
+            }
+        } else {
+            previewBox.style.display = 'none';
+        }
+    }
+
+    productSelect.addEventListener('change', updatePreview);
+    quantityInput.addEventListener('input', updatePreview);
+
+    // Initial run if preselected
+    if (productSelect.value) {
+        updatePreview();
+    }
+});
+</script>
+{% endblock %}

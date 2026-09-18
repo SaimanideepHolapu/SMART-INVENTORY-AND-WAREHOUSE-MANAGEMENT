@@ -1,0 +1,363 @@
+{% extends 'base.html' %}
+
+{% block title %}Warehouse Reports & CSV Exports{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title"><i class="fas fa-file-invoice text-primary me-2"></i> Warehouse Reports Center</h1>
+        <div class="page-subtitle">Real-time inventory valuation, audit movement ledgers, and automated reorder schedules.</div>
+    </div>
+</div>
+
+<!-- Report Navigation Tabs -->
+<ul class="nav nav-pills mb-4 gap-2">
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'inventory' %}active{% endif %}" href="{{ url_for('reports.index', tab='inventory') }}">
+            <i class="fas fa-boxes-stacked me-1"></i> Inventory Valuation
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'movement' %}active{% endif %}" href="{{ url_for('reports.index', tab='movement') }}">
+            <i class="fas fa-dolly me-1"></i> Stock Movement Audit
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if active_tab == 'low_stock' %}active{% endif %}" href="{{ url_for('reports.index', tab='low_stock') }}">
+            <i class="fas fa-triangle-exclamation me-1"></i> Low-Stock & Reorder
+        </a>
+    </li>
+</ul>
+
+{% if active_tab == 'inventory' %}
+    <!-- 1. INVENTORY VALUATION REPORT -->
+    <div class="content-card p-3 mb-3">
+        <div class="row align-items-center g-3">
+            <div class="col-lg-8">
+                <form method="GET" action="{{ url_for('reports.index') }}" class="row g-2 align-items-center">
+                    <input type="hidden" name="tab" value="inventory">
+                    <div class="col-md-5">
+                        <select name="category" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">All Categories</option>
+                            {% for c in categories %}
+                                <option value="{{ c }}" {% if selected_category == c %}selected{% endif %}>{{ c }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">All Statuses</option>
+                            <option value="IN STOCK" {% if selected_status == 'IN STOCK' %}selected{% endif %}>In Stock</option>
+                            <option value="LOW STOCK" {% if selected_status == 'LOW STOCK' %}selected{% endif %}>Low Stock</option>
+                            <option value="OUT OF STOCK" {% if selected_status == 'OUT OF STOCK' %}selected{% endif %}>Out of Stock</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        {% if selected_category or selected_status %}
+                            <a href="{{ url_for('reports.index', tab='inventory') }}" class="btn btn-outline-danger btn-sm w-100">Clear</a>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+            <div class="col-lg-4 text-lg-end">
+                <a href="{{ url_for('reports.export_inventory_csv', category=selected_category, status=selected_status) }}" class="btn btn-success-wh btn-sm shadow-sm">
+                    <i class="fas fa-file-csv me-1"></i> Download Inventory CSV
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary KPI Strip -->
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <div class="content-card p-3 text-center mb-0">
+                <div class="text-muted small text-uppercase">Total Catalog Items</div>
+                <div class="fs-4 fw-bold text-dark">{{ inventory_summary.total_items }} SKUs</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="content-card p-3 text-center mb-0">
+                <div class="text-muted small text-uppercase">Total Units in Stock</div>
+                <div class="fs-4 fw-bold text-primary">{{ "{:,}".format(inventory_summary.total_units) }} units</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="content-card p-3 text-center mb-0">
+                <div class="text-muted small text-uppercase">Total Asset Valuation</div>
+                <div class="fs-4 fw-bold text-success">${{ "{:,.2f}".format(inventory_summary.total_valuation) }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="content-card mb-0">
+        <div class="table-responsive">
+            <table class="warehouse-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>SKU</th>
+                        <th>Category</th>
+                        <th>Current Stock</th>
+                        <th>Min</th>
+                        <th>Status</th>
+                        <th>Unit Price</th>
+                        <th>Total Value</th>
+                        <th>Location</th>
+                        <th>Supplier</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in inventory_data %}
+                        <tr>
+                            <td class="fw-bold">{{ row.product_name }}</td>
+                            <td><span class="sku-tag">{{ row.sku }}</span></td>
+                            <td><span class="badge bg-light text-secondary border">{{ row.category }}</span></td>
+                            <td class="fw-bold fs-6">{{ row.stock_quantity }}</td>
+                            <td class="text-muted small">{{ row.minimum_stock }}</td>
+                            <td>
+                                {% if row.status == 'OUT OF STOCK' %}
+                                    <span class="badge-out-of-stock">OUT OF STOCK</span>
+                                {% elif row.status == 'LOW STOCK' %}
+                                    <span class="badge-low-stock">LOW STOCK</span>
+                                {% else %}
+                                    <span class="badge-in-stock">IN STOCK</span>
+                                {% endif %}
+                            </td>
+                            <td>${{ "%.2f" | format(row.price) }}</td>
+                            <td class="fw-semibold text-primary">${{ "{:,.2f}".format(row.total_value) }}</td>
+                            <td><span class="location-tag">{{ row.location }}</span></td>
+                            <td class="small text-muted">{{ row.supplier }}</td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="10" class="text-center py-4 text-muted">No inventory data matches selected filters.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+{% elif active_tab == 'movement' %}
+    <!-- 2. STOCK MOVEMENT REPORT -->
+    <div class="content-card p-3 mb-3">
+        <div class="row align-items-center g-3">
+            <div class="col-lg-9">
+                <form method="GET" action="{{ url_for('reports.index') }}" class="row g-2 align-items-center">
+                    <input type="hidden" name="tab" value="movement">
+                    <div class="col-md-3">
+                        <select name="type" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">All Movement Types</option>
+                            <option value="STOCK_IN" {% if selected_type == 'STOCK_IN' %}selected{% endif %}>Stock In</option>
+                            <option value="STOCK_OUT" {% if selected_type == 'STOCK_OUT' %}selected{% endif %}>Stock Out</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select name="product_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="">All Products</option>
+                            {% for p in all_products %}
+                                <option value="{{ p.id }}" {% if selected_product_id == p.id %}selected{% endif %}>{{ p.sku }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" name="from_date" class="form-control form-control-sm" value="{{ from_date }}">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="date" name="to_date" class="form-control form-control-sm" value="{{ to_date }}">
+                    </div>
+                    <div class="col-md-2 d-flex gap-1">
+                        <button type="submit" class="btn btn-secondary btn-sm w-100"><i class="fas fa-filter"></i></button>
+                        {% if selected_type or selected_product_id or from_date or to_date %}
+                            <a href="{{ url_for('reports.index', tab='movement') }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-times"></i></a>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+            <div class="col-lg-3 text-lg-end">
+                <a href="{{ url_for('reports.export_movements_csv', from_date=from_date, to_date=to_date, type=selected_type, product_id=selected_product_id) }}" class="btn btn-success-wh btn-sm shadow-sm">
+                    <i class="fas fa-file-csv me-1"></i> Download Movements CSV
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Movement Summary KPIs -->
+    <div class="row g-3 mb-3">
+        <div class="col-md-3">
+            <div class="content-card p-3 text-center mb-0">
+                <div class="text-muted small text-uppercase">Total Movements</div>
+                <div class="fs-4 fw-bold text-dark">{{ movement_summary.total_movements }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="content-card p-3 text-center mb-0">
+                <div class="text-muted small text-uppercase">Units Received (In)</div>
+                <div class="fs-4 fw-bold text-primary">+{{ "{:,}".format(movement_summary.total_in_units) }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="content-card p-3 text-center mb-0">
+                <div class="text-muted small text-uppercase">Units Dispatched (Out)</div>
+                <div class="fs-4 fw-bold text-danger">-{{ "{:,}".format(movement_summary.total_out_units) }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="content-card p-3 text-center mb-0">
+                <div class="text-muted small text-uppercase">Net Flow Delta</div>
+                <div class="fs-4 fw-bold {% if movement_summary.net_change >= 0 %}text-success{% else %}text-danger{% endif %}">
+                    {{ "+{:,.0f}".format(movement_summary.net_change) if movement_summary.net_change >= 0 else "{:,.0f}".format(movement_summary.net_change) }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Movement Table -->
+    <div class="content-card mb-0">
+        <div class="table-responsive">
+            <table class="warehouse-table">
+                <thead>
+                    <tr>
+                        <th>Date (UTC)</th>
+                        <th>Ref Number</th>
+                        <th>Product Name</th>
+                        <th>SKU</th>
+                        <th>Type</th>
+                        <th>Quantity</th>
+                        <th>Counterpart</th>
+                        <th>Logged By</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in movement_data %}
+                        <tr>
+                            <td class="small text-muted">{{ row.date }}</td>
+                            <td><code>{{ row.reference_number }}</code></td>
+                            <td class="fw-semibold">{{ row.product_name }}</td>
+                            <td><span class="sku-tag">{{ row.sku }}</span></td>
+                            <td>
+                                {% if row.type == 'STOCK_IN' %}
+                                    <span class="badge-stock-in">STOCK IN</span>
+                                {% else %}
+                                    <span class="badge-stock-out">STOCK OUT</span>
+                                {% endif %}
+                            </td>
+                            <td class="fw-bold {% if row.type == 'STOCK_IN' %}text-primary{% else %}text-danger{% endif %}">
+                                {{ row.quantity_display }}
+                            </td>
+                            <td class="small">{{ row.counterpart }}</td>
+                            <td class="small"><span class="badge bg-light text-dark border">{{ row.performed_by }}</span></td>
+                            <td class="small text-muted">{{ row.notes or '-' }}</td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="9" class="text-center py-4 text-muted">No movement records found for this period.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+{% elif active_tab == 'low_stock' %}
+    <!-- 3. LOW STOCK & REORDER REPORT -->
+    <div class="content-card p-3 mb-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <span class="fw-bold text-danger"><i class="fas fa-triangle-exclamation me-1"></i> Stock Replenishment Priority Matrix</span>
+                <div class="text-muted small">Items where physical stock &le; configured minimum threshold.</div>
+            </div>
+            <a href="{{ url_for('reports.export_low_stock_csv') }}" class="btn btn-success-wh btn-sm shadow-sm">
+                <i class="fas fa-file-csv me-1"></i> Download Reorder Schedule CSV
+            </a>
+        </div>
+    </div>
+
+    <!-- Reorder KPIs -->
+    <div class="row g-3 mb-3">
+        <div class="col-md-6">
+            <div class="content-card p-3 text-center mb-0">
+                <div class="text-muted small text-uppercase">Items Requiring Reorder</div>
+                <div class="fs-4 fw-bold text-danger">{{ low_stock_summary.total_low_stock_items }} SKUs</div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="content-card p-3 text-center mb-0">
+                <div class="text-muted small text-uppercase">Estimated Procurement Capital</div>
+                <div class="fs-4 fw-bold text-primary">${{ "{:,.2f}".format(low_stock_summary.total_estimated_reorder_cost) }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reorder Table -->
+    <div class="content-card mb-0">
+        <div class="table-responsive">
+            <table class="warehouse-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>SKU</th>
+                        <th>Current Stock</th>
+                        <th>Min Threshold</th>
+                        <th>Status</th>
+                        <th>Suggested Reorder</th>
+                        <th>Unit Price</th>
+                        <th>Est. PO Cost</th>
+                        <th>Supplier Partner</th>
+                        <th>Vendor Contact</th>
+                        <th>Location</th>
+                        {% if current_user.is_admin or current_user.is_staff %}
+                        <th class="text-end">Action</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in low_stock_data %}
+                        <tr {% if row.stock_quantity == 0 %}class="bg-danger-subtle"{% endif %}>
+                            <td class="fw-bold">{{ row.product_name }}</td>
+                            <td><span class="sku-tag">{{ row.sku }}</span></td>
+                            <td class="fw-bold {% if row.stock_quantity == 0 %}text-danger{% else %}text-warning-emphasis{% endif %}">
+                                {{ row.stock_quantity }} units
+                            </td>
+                            <td class="text-muted small">{{ row.minimum_stock }} units</td>
+                            <td>
+                                {% if row.status == 'OUT OF STOCK' %}
+                                    <span class="badge-out-of-stock">OUT OF STOCK</span>
+                                {% else %}
+                                    <span class="badge-low-stock">LOW STOCK</span>
+                                {% endif %}
+                            </td>
+                            <td class="fw-bold text-primary">+{{ row.suggested_reorder }} units</td>
+                            <td>${{ "%.2f" | format(row.unit_price) }}</td>
+                            <td class="fw-bold text-dark">${{ "{:,.2f}".format(row.reorder_cost) }}</td>
+                            <td class="fw-semibold">{{ row.supplier_name }}</td>
+                            <td class="small text-muted">
+                                <div><i class="fas fa-phone me-1"></i> {{ row.supplier_phone }}</div>
+                                <div><i class="fas fa-envelope me-1"></i> {{ row.supplier_email }}</div>
+                            </td>
+                            <td><span class="location-tag">{{ row.location }}</span></td>
+                            {% if current_user.is_admin or current_user.is_staff %}
+                            <td class="text-end">
+                                <a href="{{ url_for('inventory.stock_in') }}" class="btn btn-primary-wh btn-sm py-1 px-2" style="font-size: 0.75rem;">
+                                    <i class="fas fa-plus"></i> Restock
+                                </a>
+                            </td>
+                            {% endif %}
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="12" class="text-center py-4 text-muted">
+                                <i class="fas fa-check-circle text-success fa-2x mb-2"></i>
+                                <div>All inventory balances are currently above minimum safety thresholds!</div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endif %}
+
+{% endblock %}
